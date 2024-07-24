@@ -1,27 +1,46 @@
 import { Router } from "express";
 import productsManagers from "../managers/ProductManager.js";
 import { checkproductData } from "../middlewares/checkProductData.js";
+import productDao from "../dao/product.dao.js";
 
 const ProductRouter = Router();
 
-ProductRouter.get("/products", async (req, res) => {
-  const { limit } = req.query;
-  console.log(limit);
+//-----------------GET-------------------------------
+
+ProductRouter.get("/", async (req, res) => {
   try {
-    const products = await productsManagers.getProducts(limit);
-    res.send(products);
+    const { limit, page, sort, category, status } = req.query;
+    const options = {
+      limit: limit || 10,
+      page: page || 1,
+      sort: {
+        price: sort === "asc" ? 1 : -1,
+      },
+    };
+
+    if (status) {
+      const products = await productDao.getAll({ status }, options);
+      return res.status(200).json({ status: "OK", products });
+    }
+
+    if (category) {
+      const products = await productDao.getAll({ category }, options);
+      return res.status(200).json({ status: "OK", products });
+    }
+    const products = await productDao.getAll({}, options);
+    res.status(200).json({ status: "OK", products });
   } catch (error) {
     console.log(error);
     res
       .status(500)
-      .json({ status: "error", msg: "Error interno del servidor" });
+      .json({ status: "Error", msg: "Error interno del servidor" });
   }
 });
 
-ProductRouter.get("/products/:id", async (req, res) => {
+ProductRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const productFound = await productsManagers.getProductsbyId(id);
+    const productFound = await productDao.getById(id);
     if (!productFound)
       return res.status(404).json({
         status: "error",
@@ -36,25 +55,12 @@ ProductRouter.get("/products/:id", async (req, res) => {
   }
 });
 
-ProductRouter.put("/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const body = req.body;
-    const product = await productsManagers.updateProduct(id, body);
-    if (!product) return `No existe el servicio con el id ${id}`;
-    res.send(product);
-  } catch (error) {
-    console.log(error);
-    res
-      .status(500)
-      .json({ status: "error", msg: "Error interno del servidor" });
-  }
-});
+//-----------------POST-------------------------------
 
-ProductRouter.post("/products", checkproductData, async (req, res) => {
+ProductRouter.post("/", checkproductData, async (req, res) => {
   try {
     const body = req.body;
-    const product = await productsManagers.addProduct(body);
+    const product = await productDao.create(body);
     res.status(201).json({ status: "ok", product });
     console.log("Producto agregado con exito!");
   } catch (error) {
@@ -65,21 +71,34 @@ ProductRouter.post("/products", checkproductData, async (req, res) => {
   }
 });
 
-ProductRouter.delete("/products/:id", async (req, res) => {
+//-----------------PUT-------------------------------
+
+ProductRouter.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await productsManagers.getProductsbyId(id);
+    const body = req.body;
+    const product = await productDao.update(id, body);
+    res.status(200).json({ status: "ok", product });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ status: "error", msg: "Error interno del servidor" });
+  }
+});
+
+//-----------------DELETE-------------------------------
+
+ProductRouter.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await productDao.deleteOne(id);
+
     if (!product)
       return res.status(404).json({
         status: "error",
-        msg: `No existe el servicio con el id ${id}`,
+        msg: `No existe el producto con el id ${id}`,
       });
-
-    await productsManagers.deleteProduct(id);
-    res.status(200).json({
-      status: "ok",
-      msg: `Producto con el ID ${id} eliminado con éxito`,
-    });
   } catch (error) {
     console.log(error);
     res

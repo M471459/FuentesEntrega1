@@ -29,12 +29,10 @@ export const checkproductData = async (req, res, next) => {
       }
     }
     if (hasUndefinedFields) {
-      return res
-        .status(404)
-        .json({
-          status: "error",
-          msg: "Todos los campos son obligatorios a excepción de Thumbnail",
-        });
+      return res.status(404).json({
+        status: "error",
+        msg: "Todos los campos son obligatorios a excepción de Thumbnail",
+      });
     }
     next();
   } catch (error) {

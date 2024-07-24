@@ -1,36 +1,14 @@
 import { Router } from "express";
-import cartManagers from "../managers/CartManager.js";
+import cartDao from "../dao/cart.dao.js";
+import { checkProductAndCart } from "../middlewares/checkProductAndCart.middleware.js";
 
 const CartRouter = Router();
 
-CartRouter.post("/carts", async (req, res) => {
-  try {
-    const cart = await cartManagers.createCart();
-    res.status(201).json({ status: "ok", cart });
-  } catch (error) {
-    console.log(error);
-    res
-      .status(500)
-      .json({ status: "error", msg: "Error interno del servidor" });
-  }
-});
+//-----------------GET-------------------------------
 
-CartRouter.post("/carts/:cid/product/:pid", async (req, res) => {
+CartRouter.get("/", async (req, res) => {
   try {
-    const { cid, pid } = req.params;
-    const cart = await cartManagers.addProductToCart(cid, pid);
-    res.status(201).json({ status: "ok", cart });
-  } catch (error) {
-    console.log(error);
-    res
-      .status(500)
-      .json({ status: "error", msg: "Error interno del servidor" });
-  }
-});
-
-CartRouter.get("/carts", async (req, res) => {
-  try {
-    const carts = await cartManagers.getCarts();
+    const carts = await cartDao.getAllCarts();
     res.send(carts);
     return carts;
   } catch (error) {
@@ -41,10 +19,10 @@ CartRouter.get("/carts", async (req, res) => {
   }
 });
 
-CartRouter.get("/carts/:id", async (req, res) => {
+CartRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const cartFound = await cartManagers.getCartsbyID(id);
+    const cartFound = await cartDao.getbyId(id);
     if (!cartFound)
       return res.status(404).json({
         status: "error",
@@ -59,25 +37,12 @@ CartRouter.get("/carts/:id", async (req, res) => {
   }
 });
 
-CartRouter.put("/carts/:id", async (req, res) => {
+//-----------------POST-------------------------------
+
+CartRouter.post("/", async (req, res) => {
   try {
-    const { id } = req.params;
-    const {
-      title,
-      description,
-      code,
-      price,
-      status,
-      stock,
-      category,
-      thumbnail,
-    } = req.query;
-    const product = await cartManagers.updateProduct(Number(id), {
-      cantidadDePreguntas: Number(np),
-      servicio: nombre,
-    });
-    if (!product) return `No existe el servicio con el id ${id}`;
-    res.send(product);
+    const cart = await cartDao.create();
+    res.status(201).json({ status: "ok", cart });
   } catch (error) {
     console.log(error);
     res
@@ -86,21 +51,65 @@ CartRouter.put("/carts/:id", async (req, res) => {
   }
 });
 
-CartRouter.delete("/carts/:id", async (req, res) => {
+CartRouter.post("/:cid/product/:pid", checkProductAndCart, async (req, res) => {
   try {
-    const { id } = req.params;
-    const product = await cartManagers.getcartbyId(Number(id));
-    if (!product)
-      return res.status(404).json({
-        status: "error",
-        msg: `No existe el servicio con el id ${id}`,
-      });
+    const { cid, pid } = req.params;
+    const cart = await cartDao.addProductToCart(cid, pid);
+    res.status(201).json({ status: "ok", cart });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ status: "error", msg: "Error interno del servidor" });
+  }
+});
 
-    await cartManagers.deleteproduct(Number(id));
-    res.status(200).json({
-      status: "ok",
-      msg: `Producto con el ID ${id} eliminado con éxito`,
-    });
+//-----------------PUT-------------------------------
+
+CartRouter.put("/:cid/product/:pid", async (req, res) => {
+  try {
+    const { cid, pid } = req.params;
+    const { quantity } = req.body;
+
+    const cart = await cartDao.updateProductinCart(cid, pid, quantity);
+    res.status(201).json({ status: "ok", cart });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ status: "error", msg: "Error interno del servidor" });
+  }
+});
+
+//-----------------DELETE-------------------------------
+
+CartRouter.delete(
+  "/:cid/product/:pid",
+  checkProductAndCart,
+  async (req, res) => {
+    try {
+      const { cid, pid } = req.params;
+      const cart = await cartDao.deleteProductInCart(cid, pid);
+      res.status(201).json({ status: "ok", cart });
+    } catch (error) {
+      console.log(error);
+      res
+        .status(500)
+        .json({ status: "error", msg: "Error interno del servidor" });
+    }
+  }
+);
+
+CartRouter.delete("/:cid", async (req, res) => {
+  try {
+    const { cid } = req.params;
+    const cart = await cartDao.getbyId(cid);
+    if (!cart)
+      return res
+        .status(404)
+        .json({ status: "error", msg: "carrito no encontrado" });
+    const cartResponse = await cartDao.deleteAllProductsInCart(cid);
+    res.status(201).json({ status: "ok", cart: cartResponse });
   } catch (error) {
     console.log(error);
     res
